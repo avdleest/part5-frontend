@@ -8,22 +8,20 @@ import Toggable from './components/Toggable'
 import blogService from './services/blogs'
 import loginService from './services/login'
 
-const initialBlogState = { title: "", author: "", url: "" }
+const initialBlogState = { title: '', author: '', url: '' }
 
 const App = () => {
   const [blogs, setBlogs] = useState([])
   const [newBlog, setNewBlog] = useState(initialBlogState)
-  const [showAll, setShowAll] = useState(true)
-  const [errorMessage, setErrorMessage] = useState(null)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [user, setUser] = useState(null)
-  const [test, setTest] = useState('Nu niks')
 
   useEffect(() => {
     blogService
       .getAll()
-      .then(initialBlogs => setBlogs(initialBlogs))
+      .then(initialBlogs => setBlogs(initialBlogs.sort((a, b) => (a.likes > b.likes) ? 1 : -1)))
+
   }, [])
 
   useEffect(() => {
@@ -34,10 +32,6 @@ const App = () => {
       blogService.setToken(user.token)
     }
   }, [])
-
-  // const notesToShow = showAll
-  //   ? blogs
-  //   : blogs.filter(note => note.important)
 
   const handleLogin = async (event) => {
     event.preventDefault()
@@ -56,10 +50,6 @@ const App = () => {
     } catch (exception) {
       console.log('wrong credentials')
       setPassword('')
-      setErrorMessage('Wrong credentials')
-      setTimeout(() => {
-        setErrorMessage(null)
-      }, 5000)
     }
   }
 
@@ -69,43 +59,6 @@ const App = () => {
     setUser(null)
 
   }
-
-  // const rows = () => notesToShow.map(note =>
-  //   <Note
-  //     key={note.id}
-  //     note={note}
-  //     toggleImportance={() => toggleImportanceOf(note.id)}
-  //   />
-  // )
-
-  // const LoginForm = () => (
-  //   <form onSubmit={handleLogin}>
-  //     <div>
-  //       username
-  //       <input type="text" value={username} name="Username" onChange={({ target }) => setUsername(target.value)} />
-  //     </div>
-  //     <div>
-  //       password
-  //       <input
-  //         type="password" value={password} name="Password" onChange={({ target }) => setPassword(target.value)} />
-  //     </div>
-  //     <button type="submit">login</button>
-  //   </form>
-  // )
-
-  // const noteForm = () => (
-  //   <form onSubmit={addNote}>
-  //     <input
-  //       value={newBlog}
-  //       onChange={handleNoteChange}
-  //     />
-  //     <button type="submit">save</button>
-  //   </form>
-  // )
-
-  // const handleNoteChange = (event) => {
-  //   setNewBlog(event.target.value)
-  // }
 
   const blogFormRef = React.createRef()
 
@@ -124,39 +77,46 @@ const App = () => {
     setBlogs(blogs.concat(blog))
     setNewBlog(initialBlogState)
 
-
-    // blogService
-    //   .create(blogObject)
-    //   .then(data => {
-    //     setBlogs(blogs.concat(data))
-    //     setNewBlog(initialBlogState)
-    //   })
   }
 
-  // const toggleImportanceOf = id => {
-  //   const note = blogs.find(n => n.id === id)
-  //   const changedNote = { ...note, important: !note.important }
-
-  //   blogService
-  //     .update(id, changedNote)
-  //     .then(returnedNote => {
-  //       setBlogs(blogs.map(note => note.id !== id ? note : returnedNote))
-  //     })
-  //     .catch(error => {
-  //       setErrorMessage(
-  //         `Note '${note.content}' was already removed from server`
-  //       )
-  //       setTimeout(() => {
-  //         setErrorMessage(null)
-  //       }, 5000)
-  //       setBlogs(blogs.filter(n => n.id !== id))
-  //     })
-
-  // }
-
-
-  const setNewBlogState = (newBlogData) => {
+  const setNewBlogState = newBlogData => {
     setNewBlog({ ...newBlog, ...newBlogData })
+  }
+
+  const deleteHandler = async blog => {
+    // console.log(`Do you really want to remove blog ${blog.title} by ${blog.author}?`)
+    if (!window.confirm(`Do you really want to remove blog ${blog.title} by ${blog.author}?`)) {
+      return
+    }
+
+    try {
+      await blogService.del(blog.id)
+      setBlogs(blogs.filter(existingBlog => existingBlog.id !== blog.id))
+    } catch (exception) {
+      console.log(exception)
+    }
+
+  }
+
+  const likeHandler = async blog => {
+
+    try {
+      const blogObject = {
+        id: blog.id,
+        title: (blog.title || ''),
+        author: (blog.author || ''),
+        url: (blog.url || ''),
+        likes: (blog.likes || 0) + 1
+      }
+
+      if (blog.user) blogObject.user = blog.user.id
+
+      const updatedBlog = await blogService.update(blog.id, blogObject)
+      console.log(updatedBlog)
+      setBlogs(blogs.map(blog => blog.id !== updatedBlog.id ? blog : updatedBlog))
+    } catch (exception) {
+      console.log(exception)
+    }
   }
 
   if (user === null) {
@@ -180,11 +140,16 @@ const App = () => {
         <BlogForm onChange={setNewBlogState} values={newBlog} onSubmit={addBlog} />
       </Toggable>
       <h2>blogs</h2>
+      {}
       {blogs.map(blog =>
-        <Blog key={blog.id} blog={blog} />
+        <Blog key={blog.id}
+          blog={blog}
+          likeHandler={likeHandler}
+          deleteHandler={deleteHandler}
+          user={user} />
       )}
     </div>
   )
 }
 
-export default App 
+export default App
