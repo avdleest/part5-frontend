@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import Blog from './components/Blog'
 import BlogForm from './components/BlogForm'
-import LoginForm from './components/LoginForm'
+// import LoginForm from './components/LoginForm'
 import Toggable from './components/Toggable'
-// import Notification from './components/Notification'
-// import Footer from './components/Footer'
 import blogService from './services/blogs'
 import loginService from './services/login'
+import { useField } from './hooks'
 
 const initialBlogState = { title: '', author: '', url: '' }
 
 const App = () => {
   const [blogs, setBlogs] = useState([])
   const [newBlog, setNewBlog] = useState(initialBlogState)
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
   const [user, setUser] = useState(null)
+  const username = useField('text')
+  const password = useField('password')
 
   useEffect(() => {
     blogService
@@ -36,20 +35,20 @@ const App = () => {
   const handleLogin = async (event) => {
     event.preventDefault()
     try {
-      const user = await loginService.login({
-        username, password,
-      })
+      const user = await loginService.login(
+        { username: username.value, password: password.value }
+      )
       console.log(user)
       window.localStorage.setItem(
         'loggedBlogappUser', JSON.stringify(user)
       )
       blogService.setToken(user.token)
       setUser(user)
-      setUsername('')
-      setPassword('')
+      username.reset()
+      password.reset()
     } catch (exception) {
       console.log('wrong credentials')
-      setPassword('')
+      password.reset()
     }
   }
 
@@ -84,7 +83,6 @@ const App = () => {
   }
 
   const deleteHandler = async blog => {
-    // console.log(`Do you really want to remove blog ${blog.title} by ${blog.author}?`)
     if (!window.confirm(`Do you really want to remove blog ${blog.title} by ${blog.author}?`)) {
       return
     }
@@ -119,16 +117,24 @@ const App = () => {
     }
   }
 
+  //I haven't been able to solve the problem with the spread operator
+
   if (user === null) {
     return (
       <div>
-        <LoginForm
-          handleSubmit={handleLogin}
-          handleUsernameChange={({ target }) => setUsername(target.value)}
-          handlePasswordChange={({ target }) => setPassword(target.value)}
-          username={username}
-          password={password}
-        />
+        <h2>Login</h2>
+
+        <form onSubmit={handleLogin}>
+          <div>
+            username
+            <input {...username} />
+          </div>
+          <div>
+            password
+            <input {...password} />
+          </div>
+          <button type="submit">login</button>
+        </form>
       </div>
     )
   }
